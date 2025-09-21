@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentiment Analyzer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Sentiment Analyzer</h1>
+            <p>Type a message and see the sentiment reflected in the background color!</p>
+        </div>
+        
+        <div class="input-section">
+            <textarea 
+                id="textInput" 
+                placeholder="Type your message here..."
+                rows="4"
+            ></textarea>
+            
+            <button id="analyzeBtn" onclick="analyzeSentiment()">
+                Analyze Sentiment
+            </button>
+        </div>
+        
+        <div id="result" class="result hidden">
+            <div class="sentiment-display">
+                <span id="sentimentText"></span>
+            </div>
+            <div class="analyzed-text">
+                <strong>Analyzed text:</strong>
+                <span id="analyzedText"></span>
+            </div>
+        </div>
+        
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Analyzing sentiment...</p>
+        </div>
+        
+        <div id="error" class="error hidden">
+            <p id="errorMessage"></p>
+        </div>
+    </div>
+
+    <script>
+        let currentTimeout;
+
+        async function analyzeSentiment() {
+            const textInput = document.getElementById('textInput');
+            const text = textInput.value.trim();
+            
+            if (!text) {
+                showError('Please enter some text to analyze');
+                return;
+            }
+            
+            // Show loading state
+            showLoading();
+            
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                showResult(data.sentiment, data.text);
+                changeBackgroundColor(data.sentiment);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Failed to analyze sentiment. Please try again.');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function showResult(sentiment, text) {
+            const resultDiv = document.getElementById('result');
+            const sentimentText = document.getElementById('sentimentText');
+            const analyzedText = document.getElementById('analyzedText');
+            
+            sentimentText.textContent = sentiment.toUpperCase();
+            sentimentText.className = `sentiment-${sentiment}`;
+            analyzedText.textContent = text;
+            
+            hideError();
+            resultDiv.classList.remove('hidden');
+        }
+        
+        function changeBackgroundColor(sentiment) {
+            const body = document.body;
+            
+            // Clear any existing timeout
+            if (currentTimeout) {
+                clearTimeout(currentTimeout);
+            }
+            
+            // Remove all sentiment classes
+            body.classList.remove('positive', 'negative', 'neutral');
+            
+            // Add the new sentiment class
+            body.classList.add(sentiment);
+            
+            // Reset to neutral after 5 seconds
+            currentTimeout = setTimeout(() => {
+                body.classList.remove('positive', 'negative', 'neutral');
+            }, 5000);
+        }
+        
+        function showLoading() {
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('analyzeBtn').disabled = true;
+        }
+        
+        function hideLoading() {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('analyzeBtn').disabled = false;
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            const errorMessage = document.getElementById('errorMessage');
+            
+            errorMessage.textContent = message;
+            errorDiv.classList.remove('hidden');
+            
+            // Hide error after 5 seconds
+            setTimeout(() => {
+                hideError();
+            }, 5000);
+        }
+        
+        function hideError() {
+            document.getElementById('error').classList.add('hidden');
+        }
+        
+        // Allow Enter key to submit
+        document.getElementById('textInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                analyzeSentiment();
+            }
+        });
+    </script>
+</body>
+</html>

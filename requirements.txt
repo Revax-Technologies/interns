@@ -1,0 +1,6 @@
+flask
+langchain
+langchain-mistralai
+python-dotenv
+mistralai
+gunicorn
